@@ -5,7 +5,7 @@ from dotenv import load_dotenv, dotenv_values
 
 from commands.voice import Music
 
-from constants import version, token, statuses
+from constants import version, token, statuses, twitch_user
 
 intents = discord.Intents.all()
 bot = commands.Bot(command_prefix="!", intents=intents)
@@ -24,7 +24,7 @@ async def on_ready():
 
 @tasks.loop(minutes=2)
 async def change_status():
-    await bot.change_presence(activity=discord.Streaming(name = random.choice(statuses), url = "https://twitch.tv/faiar"))
+    await bot.change_presence(activity=discord.Streaming(name = random.choice(statuses), url = f"https://twitch.tv/{twitch_user}"))
 
 async def setup_cogs():
     await bot.add_cog(Music(bot))
