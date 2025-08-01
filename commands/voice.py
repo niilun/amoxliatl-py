@@ -12,7 +12,6 @@ from constants import version, now_playing_channel_id
 # supress errors
 #youtube_dl.utils.bug_reports_message = lambda: ''
 
-
 ytdl_format_options = {
     'format': 'bestaudio/best',
     'outtmpl': '%(extractor)s-%(id)s-%(title)s.%(ext)s',
@@ -28,7 +27,8 @@ ytdl_format_options = {
 }
 
 ffmpeg_options = {
-    'options': '-vn',
+    'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5',
+    'options': '-vn'
 }
 
 ytdl = youtube_dl.YoutubeDL(ytdl_format_options)
@@ -189,8 +189,8 @@ class Music(commands.Cog):
             return
 
         queue_list = []
-        for idx, item in enumerate(self.queue, start = 1):
-            queue_list.append(f"{idx}. {item['url']}")
+        for idcount, item in enumerate(self.queue, start = 1):
+            queue_list.append(f"{idcount}. [{item['name']}]({item['url']})")
 
         await interaction.response.send_message("Current queue:\n" + "\n".join(queue_list), ephemeral = True)
 

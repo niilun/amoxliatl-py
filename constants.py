@@ -3,7 +3,7 @@ import os
 
 load_dotenv()
 
-version = '0.2.0'
+version = '0.2.1'
 
 statuses = [f'version {version}']
 
