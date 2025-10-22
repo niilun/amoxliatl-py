@@ -3,7 +3,7 @@ import os
 
 load_dotenv()
 
-version = '0.2.1'
+version = '0.2.3'
 
 statuses = [f'version {version}']
 twitch_user = 'example'

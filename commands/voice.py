@@ -14,16 +14,16 @@ from constants import version, now_playing_channel_id
 
 ytdl_format_options = {
     'format': 'bestaudio/best',
-    'outtmpl': '%(extractor)s-%(id)s-%(title)s.%(ext)s',
-    'restrictfilenames': True,
+    'cookiefile': 'cookies.txt',
+    'quiet': True,
     'noplaylist': True,
     'nocheckcertificate': True,
-    'ignoreerrors': False,
-    'logtostderr': False,
-    'quiet': True,
-    'no_warnings': True,
-    'default_search': 'auto',
-    'source_address': '0.0.0.0',  # bind to ipv4 since ipv6 addresses cause issues sometimes
+    'ignoreerrors': True,
+    'sleep_interval_requests': 1.0,
+    'ratelimit': 50000,
+    'source_address': '0.0.0.0', # bind to ipv4 so we don't get buggy ipv6
+    'geo_bypass': 'true',
+    'cachedir': 'false'
 }
 
 ffmpeg_options = {
@@ -45,14 +45,20 @@ class YTDLSource(discord.PCMVolumeTransformer):
     @classmethod
     async def from_url(cls, url, *, loop = None, stream = False):
         loop = loop or asyncio.get_event_loop()
-        data = await loop.run_in_executor(None, lambda: ytdl.extract_info(url, download = not stream))
+
+        # extract() handles getting fresh information so URLs don't expire on us
+        def extract():
+            return ytdl.extract_info(url, download=not stream)
+
+        data = await loop.run_in_executor(None, extract)
 
         if 'entries' in data:
-            # take first item from a playlist
             data = data['entries'][0]
 
         filename = data['url'] if stream else ytdl.prepare_filename(data)
-        return cls(discord.FFmpegPCMAudio(filename, **ffmpeg_options), data = data)
+
+        source = discord.FFmpegPCMAudio(filename, **ffmpeg_options)
+        return cls(source, data=data)
 
 
 class Music(commands.Cog):
@@ -68,6 +74,8 @@ class Music(commands.Cog):
             url = next_item['url']
             interaction = next_item['interaction']
             voice_client = guild.voice_client
+            
+            ytdl.params['cookiefile'] = 'cookies.txt'
 
             player = await YTDLSource.from_url(url, loop = asyncio.get_running_loop(), stream = True)
             voice_client.play(
@@ -114,7 +122,7 @@ class Music(commands.Cog):
         await channel.connect()
         await interaction.response.send_message(f"Connected.", ephemeral = True)
 
-    @app_commands.command(name = "play_youtube", description = "Plays audio from a YouTube URL or search parameter")
+    @app_commands.command(name = "play_youtube", description = "Plays audio from a YouTube URL")
     async def play_youtube(self, interaction: discord.Interaction, url: str):
         """Slash command to play audio from a YouTube URL."""
 
@@ -144,7 +152,7 @@ class Music(commands.Cog):
             self.is_playing = True
             await self.play_next(interaction.guild)
         else:
-            await interaction.followup.send(f"Added to queue, #{len(self.queue) + 1}", ephemeral = True)
+            await interaction.followup.send(f"Added to queue, yours is #{len(self.queue) + 1}", ephemeral = True)
 
     @app_commands.command(name = "skip", description = "Skips current song")
     async def skip(self, interaction: discord.Interaction):
@@ -152,18 +160,48 @@ class Music(commands.Cog):
         await interaction.response.defer(thinking = True, ephemeral = True)
 
         voice_client = interaction.guild.voice_client
-
+        channel = self.bot.get_channel(int(now_playing_channel_id))
+        if channel is None:
+            channel = await self.bot.fetch_channel(int(now_playing_channel_id))
+        
         if not voice_client or not voice_client.is_playing():
             await interaction.followup.send("Nothing is currently playing.", ephemeral = True)
             return
 
         if self.queue:
-            voice_client.stop()
+            # build an embed announcing who skipped the current song
             await interaction.followup.send("Skipped to next song.", ephemeral = True)
+            current_title = "Unknown Title"
+            if voice_client and getattr(voice_client, "source", None):
+                current_title = getattr(voice_client.source, "title", None) \
+                    or (getattr(voice_client.source, "data", {}) or {}).get("title") \
+                    or "Unknown Title"
+
+            response_embed = discord.Embed(
+                title = f"{interaction.user.display_name} skipped current song",
+                description = current_title,
+                colour = discord.Color.from_rgb(0, 176, 244),
+                timestamp = datetime.now()
+            )
+            response_embed.set_footer(
+                text = f"Amoxliatl v{version}",
+                icon_url = "https://niilun.dev/images/amoxliatl.png"
+            )
+
+            voice_client.stop()
+            if isinstance(channel, discord.TextChannel):
+                await channel.send(content = None, embed = response_embed)
         else:
+            await interaction.followup.send('Skipped and stopped playback.', ephemeral = True)
             voice_client.stop()
             self.is_playing = False
-            await interaction.followup.send("Stopped playback. No more songs in the queue.", ephemeral = True)
+            response_embed = discord.Embed(
+                title = f"Stopped playback. No more songs in the queue.",
+                colour = discord.Color.from_rgb(0, 176, 244),
+                timestamp = datetime.now()
+            )
+            if isinstance(channel, discord.TextChannel):
+                await channel.send(content = None, embed = response_embed)
         
     @app_commands.command(name = "volume", description = "Change player volume")
     async def volume(self, interaction: discord.Interaction, volume: int):
@@ -185,14 +223,35 @@ class Music(commands.Cog):
     async def show_queue(self, interaction: discord.Interaction):
         """Shows the current queue"""
         if not self.queue:
-            await interaction.response.send_message("The queue is empty.", ephemeral = True)
+            response_embed = discord.Embed(
+                title = f'The queue is empty.',
+                colour = discord.Color.from_rgb(0, 176, 244),
+                timestamp = datetime.now()
+            )
+
+            await interaction.response.send_message(content = None, embed = response_embed, ephemeral = True)
             return
 
         queue_list = []
         for idcount, item in enumerate(self.queue, start = 1):
-            queue_list.append(f"{idcount}. [{item['name']}]({item['url']})")
+            # queue items may not have a name, so try getting name -> title -> url in that order
+            display_name = item.get('name') or item.get('title') or item.get('url')
+            item_url = item.get('url') or display_name
+            queue_list.append(f"{idcount}. {item_url}")
 
-        await interaction.response.send_message("Current queue:\n" + "\n".join(queue_list), ephemeral = True)
+        response_embed = discord.Embed(
+            title = f'Current queue for {interaction.guild.name}',
+            description = '\n'.join(queue_list),
+            colour = discord.Color.from_rgb(0, 176, 244),
+            timestamp = datetime.now()
+        )
+
+        response_embed.set_footer(
+            text = f"Amoxliatl v{version}",
+            icon_url = "https://niilun.dev/images/amoxliatl.png"
+        )
+
+        await interaction.response.send_message(content = None, embed = response_embed, ephemeral = True)
 
     @app_commands.command(name = "stop", description = "Stops playing")
     async def stop(self, interaction: discord.Interaction):
