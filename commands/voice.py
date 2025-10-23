@@ -195,10 +195,16 @@ class Music(commands.Cog):
             await interaction.followup.send('Skipped and stopped playback.', ephemeral = True)
             voice_client.stop()
             self.is_playing = False
+
             response_embed = discord.Embed(
                 title = f"Stopped playback. No more songs in the queue.",
                 colour = discord.Color.from_rgb(0, 176, 244),
                 timestamp = datetime.now()
+            )
+
+            response_embed.set_footer(
+                text = f"Amoxliatl v{version}",
+                icon_url = "https://niilun.dev/images/amoxliatl.png"  
             )
             if isinstance(channel, discord.TextChannel):
                 await channel.send(content = None, embed = response_embed)
@@ -229,6 +235,11 @@ class Music(commands.Cog):
                 timestamp = datetime.now()
             )
 
+            response_embed.set_footer(
+                text = f"Amoxliatl v{version}",
+                icon_url = "https://niilun.dev/images/amoxliatl.png"
+            )
+            
             await interaction.response.send_message(content = None, embed = response_embed, ephemeral = True)
             return
 
