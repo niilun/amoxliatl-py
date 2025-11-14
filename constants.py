@@ -3,7 +3,10 @@ import os
 
 load_dotenv()
 
-version = '0.2.4'
+cache_file = 'prefetch_cache.json'
+cache_ttl = 10800 # time for cache data to be considered valid; in seconds.
+
+version = '0.2.81'
 
 statuses = [f'version {version}']
 twitch_user = 'example'
