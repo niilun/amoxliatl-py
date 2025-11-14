@@ -1,30 +1,32 @@
 import discord
 from datetime import datetime
 
-from discord.ext import commands
 from discord import Embed
 
-def create_embed(title: str, description: str, color: discord.Color = 0, timestamp = 0, author_name: str = '', author_url: str = '', footer_name: str = '', footer_url: str = '') -> discord.Embed:
-    if color == 0:
-        color = discord.Color.random()
+def create_embed(title: str = '', description: str = '', colour: discord.colour = None, timestamp = None, author_name: str = None, author_url: str = None, footer_name: str = None, footer_url: str = None) -> discord.Embed:
+    if not colour:
+        colour = discord.colour.random()
     
-    if timestamp == 0:
+    if not timestamp:
         timestamp = datetime.now()
     
     embed = discord.Embed(
         title = title,
         description = description,
-        color = color,
+        colour = colour,
         timestamp = timestamp
     )
 
-    if author_name:
-        embed.set_author(name = author_name)
-    if author_url:
-        embed.set_author(url = author_url)
-    if footer_name:
-        embed.set_footer(name = footer_name)
-    if footer_url:
-        embed.set_footer(url = footer_url)
+    if author_name or author_url:
+        embed.set_author(
+            name = author_name if author_name else '',
+            url = author_url if author_url else ''
+        )
+
+    if footer_name or footer_url:
+        embed.set_footer(
+            text=footer_name if footer_name else '',
+            icon_url=footer_url if footer_url else ''
+        )
 
     return embed

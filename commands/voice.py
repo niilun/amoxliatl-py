@@ -215,17 +215,18 @@ class Music(commands.Cog):
         webpage_url = player.data.get('webpage_url', 'Unknown URL')
 
         response_embed = create_embed(
-            title=player.title or 'Unknown Title',
-            description=f'Channel: {channel_name}\nLink: {webpage_url}',
-            colour=discord.Color.from_rgb(0, 176, 244),
-            timestamp=datetime.now(),
-            author_name = 'Now playing',
+            title = player.title or 'Unknown Title',
+            description = f'Channel: {channel_name}\nLink: {webpage_url}',
+            colour = discord.Colour.from_rgb(0, 176, 244),
+            timestamp = datetime.now(),
+            author_name = f'Now playing',
+            author_url = None,
             footer_name = f'Amoxliatl v{version}',
             footer_url = 'https://niilun.dev/images/amoxliatl.png'
         )
 
         if isinstance(channel, discord.TextChannel):
-            await channel.send(embed=response_embed)
+            await channel.send(embed = response_embed)
 
         # notify interaction user if possible
         try:
@@ -312,7 +313,7 @@ class Music(commands.Cog):
         response_embed = create_embed(
             title=song_name,
             description=f'Channel: {song_channel}\nLink: {song_url}',
-            colour=discord.Color.from_rgb(0, 176, 244),
+            colour=discord.Colour.from_rgb(0, 176, 244),
             timestamp=datetime.now(),
             author_name = f'{interaction.user.display_name} added to queue',
             author_url = interaction.user.display_avatar.url,
@@ -354,7 +355,7 @@ class Music(commands.Cog):
 
             response_embed = create_embed(
                 title = current_title,
-                color = discord.Color.from_rgb(0, 176, 244),
+                colour = discord.Colour.from_rgb(0, 176, 244),
                 timestamp = datetime.now(),
                 author_name = f'{interaction.user.display_name} skipped current song',
                 author_url = interaction.user.display_avatar.url,
@@ -372,8 +373,10 @@ class Music(commands.Cog):
 
             response_embed = create_embed(
                 title = 'Stopped playback. No more songs in the queue.',
-                color = discord.Color.from_rgb(0, 176, 244),
+                colour = discord.Colour.from_rgb(0, 176, 244),
                 timestamp = datetime.now(),
+                author_name = None,
+                author_url = None,
                 footer_name = f'Amoxliatl v{version}',
                 footer_url = 'https://niilun.dev/images/amoxliatl.png',
             )
@@ -403,8 +406,10 @@ class Music(commands.Cog):
         if not self.queue:
             response_embed = create_embed(
                 title = 'The queue is empty.',
-                color = discord.Color.from_rgb(0, 176, 244),
+                colour = discord.Colour.from_rgb(0, 176, 244),
                 timestamp = datetime.now(),
+                author_name = None,
+                author_url = None,
                 footer_name = f'Amoxliatl v{version}',
                 footer_url = 'https://niilun.dev/images/amoxliatl.png',
             )
@@ -422,8 +427,10 @@ class Music(commands.Cog):
         response_embed = create_embed(
             title = f'Current queue for {interaction.guild.name}',
             description = '\n'.join(queue_list),
-            color = discord.Color.from_rgb(0, 176, 244),
+            colour = discord.Colour.from_rgb(0, 176, 244),
             timestamp = datetime.now(),
+            author_name = None,
+            author_url = None,
             footer_name = f'Amoxliatl v{version}',
             footer_url = 'https://niilun.dev/images/amoxliatl.png',
         )
@@ -446,11 +453,14 @@ class Music(commands.Cog):
         channel_name = interaction.guild.voice_client.channel.name if interaction.guild.voice_client and interaction.guild.voice_client.channel else 'Unknown'
 
         response_embed = create_embed(
+            title = '',
             description = f'Left {channel_name}',
-            color = discord.Color.from_rgb(0, 176, 244),
+            colour = discord.Colour.from_rgb(0, 176, 244),
             timestamp = datetime.now(),
             author_name = f'{interaction.user.display_name} stopped playback',
-            author_url = interaction.user.display_avatar.url
+            author_url = interaction.user.display_avatar.url,
+            footer_name = None,
+            footer_url = None
         )
         
         if voice_client and voice_client.is_connected():
